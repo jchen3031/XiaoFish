@@ -248,7 +248,7 @@ class CustomTransformer(tf.keras.Model):
         enc_padding_mask, look_ahead_mask, dec_padding_mask = self.create_masks(inp, tar)
 
         final_output = self.transformer(
-            inp, tar, training, enc_padding_mask, look_ahead_mask, dec_padding_mask
+            inp, tar, training=training, enc_padding_mask=enc_padding_mask, look_ahead_mask=look_ahead_mask, dec_padding_mask=dec_padding_mask
         )
         return final_output
 
