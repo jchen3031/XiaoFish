@@ -90,10 +90,10 @@ test_dataset = test_dataset.padded_batch(
 )
 
 # 设置超参数
-num_layers = 8
-d_model = 256
-dff = 512
-num_heads = 16
+num_layers = 4
+d_model = 128
+dff = 256
+num_heads = 8
 
 input_vocab_size = 8500
 target_vocab_size = 8000
