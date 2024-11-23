@@ -125,15 +125,18 @@ import tensorflow as tf
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from XiaoFishBot import Transformer, CustomTransformer
 from tensorflow.keras.preprocessing.text import Tokenizer
+import numpy as np
 
 # 读取文件内容
-with open(r'nl2bash/data/bash/all.cm', 'r', encoding='utf-8') as f_cm:
+with open(r'data/all.nl', 'r', encoding='utf-8') as f_cm:
     source_sentences = f_cm.readlines()
 
-with open(r'nl2bash/data/bash/all.nl', 'r', encoding='utf-8') as f_nl:
+with open(r'data/all.cm', 'r', encoding='utf-8') as f_nl:
     target_sentences = f_nl.readlines()
 
 # 创建源和目标语言的 Tokenizer
+# target_sentences = target_sentences[:100]
+
 source_tokenizer = Tokenizer(num_words=8500, oov_token="<OOV>")
 target_tokenizer = Tokenizer(num_words=8000, oov_token="<OOV>")
 
@@ -170,18 +173,20 @@ val_target = pad_sequences(val_target, padding='post')
 test_input = pad_sequences(test_input, padding='post')
 test_target = pad_sequences(test_target, padding='post')
 
+
 # 创建 tar_inp 和 tar_real
 def create_tar_inp_tar_real(tar):
     tar_inp = tar[:, :-1]
     tar_real = tar[:, 1:]
     return tar_inp, tar_real
 
+
 # 对训练集
 train_tar_inp, train_tar_real = create_tar_inp_tar_real(train_target)
 train_dataset = tf.data.Dataset.from_tensor_slices(((train_input, train_tar_inp), train_tar_real))
 train_dataset = train_dataset.shuffle(BUFFER_SIZE).padded_batch(
     BATCH_SIZE,
-    padded_shapes=(( [None], [None] ), [None]),
+    padded_shapes=(([None], [None]), [None]),
     drop_remainder=True
 )
 
@@ -190,7 +195,7 @@ val_tar_inp, val_tar_real = create_tar_inp_tar_real(val_target)
 val_dataset = tf.data.Dataset.from_tensor_slices(((val_input, val_tar_inp), val_tar_real))
 val_dataset = val_dataset.padded_batch(
     BATCH_SIZE,
-    padded_shapes=(( [None], [None] ), [None]),
+    padded_shapes=(([None], [None]), [None]),
     drop_remainder=True
 )
 
@@ -199,15 +204,15 @@ test_tar_inp, test_tar_real = create_tar_inp_tar_real(test_target)
 test_dataset = tf.data.Dataset.from_tensor_slices(((test_input, test_tar_inp), test_tar_real))
 test_dataset = test_dataset.padded_batch(
     BATCH_SIZE,
-    padded_shapes=(( [None], [None] ), [None]),
+    padded_shapes=(([None], [None]), [None]),
     drop_remainder=True
 )
 
 # 设置超参数
-num_layers = 4
-d_model = 128
+num_layers = 8
+d_model = 256
 dff = 512
-num_heads = 8
+num_heads = 16
 
 input_vocab_size = 8500
 target_vocab_size = 8000
@@ -231,7 +236,7 @@ custom_transformer = CustomTransformer(transformer)
 
 # 编译模型
 custom_transformer.compile(
-    optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001),
+    optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
     loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
     metrics=['accuracy']
 )
@@ -239,8 +244,57 @@ custom_transformer.compile(
 # 训练模型
 history = custom_transformer.fit(
     train_dataset,
-    epochs=20,
+    epochs=50,
     validation_data=val_dataset
 )
-test_loss, test_accuracy = custom_transformer.evaluate(test_dataset)
-print(f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.4f}")
+# test_loss, test_accuracy = custom_transformer.evaluate(test_dataset)
+# print(f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.4f}")
+pred = custom_transformer.predict(val_dataset)
+pred = tf.nn.softmax(pred, axis=-1).numpy()
+print(pred[:5], pred.shape)
+predicted_sequences = np.argmax(pred, axis=-1)
+
+
+def sequences_to_texts(sequences, tokenizer):
+    return [
+        " ".join([tokenizer.index_word.get(idx, "<OOV>") for idx in sequence if idx > 0])
+        for sequence in sequences
+    ]
+
+def beam_search_decoder(pred, beam_width, tokenizer):
+    """
+    使用 Beam Search 进行解码
+    """
+    decoded_sequences = []
+    for pred_sequence in pred:
+        # 以 beam_width 为宽度选择候选路径
+        sequences = [[[], 0.0]]  # 初始序列和得分
+        for prob_distribution in pred_sequence:
+            all_candidates = []
+            for seq, score in sequences:
+                for idx, prob in enumerate(prob_distribution):
+                    if prob > 0:  # 只处理有效概率
+                        candidate = (seq + [idx], score - np.log(prob + 1e-9))
+                        all_candidates.append(candidate)
+            # 按得分排序，选择前 beam_width 个候选序列
+            ordered = sorted(all_candidates, key=lambda tup: tup[1])
+            sequences = ordered[:beam_width]
+        # 最佳候选序列
+        best_sequence = sequences[0][0]
+        decoded_sequences.append(
+            " ".join([tokenizer.index_word.get(idx, "<OOV>") for idx in best_sequence if idx > 0])
+        )
+    return decoded_sequences
+
+
+# 使用 Beam Search 解码
+beam_width = 10  # Beam Search 的宽度
+# predicted_texts = beam_search_decoder(pred[:5], beam_width, target_tokenizer)
+
+
+# 转换预测序列为文字
+predicted_texts = sequences_to_texts(predicted_sequences, target_tokenizer)
+
+# 输出前几条预测结果
+for i, text in enumerate(predicted_texts[:5]):
+    print(f"预测第 {i + 1} 条：{text}")
