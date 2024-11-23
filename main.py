@@ -1,6 +1,6 @@
 import tensorflow as tf
 from tensorflow.keras.preprocessing.sequence import pad_sequences
-from XiaoFishBot import Transformer, CustomTransformer
+from XiaoFishBot import Transformer, CustomTransformer, CustomSchedule
 from tensorflow.keras.preprocessing.text import Tokenizer
 import numpy as np
 from tensorflow.keras.callbacks import TensorBoard
@@ -114,10 +114,11 @@ transformer = Transformer(
 
 # 创建自定义模型
 custom_transformer = CustomTransformer(transformer)
-
+learning_rate = CustomSchedule(d_model)
+optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98, epsilon=1e-9)
 # 编译模型
 custom_transformer.compile(
-    optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
+    optimizer=optimizer,
     loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
     metrics=['accuracy']
 )

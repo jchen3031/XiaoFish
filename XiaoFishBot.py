@@ -117,10 +117,9 @@ class Encoder(layers.Layer):
 
         self.enc_layers = [EncoderLayer(d_model, num_heads, dff, rate)
                            for _ in range(num_layers)]
-
         self.dropout = layers.Dropout(rate)
 
-    def call(self, x, training, mask):
+    def call(self, x, training, mask=None):  # 添加 mask 参数
         seq_len = tf.shape(x)[1]
 
         # 添加嵌入和位置编码
@@ -130,10 +129,12 @@ class Encoder(layers.Layer):
 
         x = self.dropout(x, training=training)
 
+        # 逐层调用 EncoderLayer
         for i in range(self.num_layers):
-            x = self.enc_layers[i](x, training, mask)
+            x = self.enc_layers[i](x, training=training, mask=mask)
 
         return x  # (batch_size, input_seq_len, d_model)
+
 
 
 # 定义解码器层
@@ -157,13 +158,12 @@ class DecoderLayer(layers.Layer):
         self.dropout2 = layers.Dropout(rate)
         self.dropout3 = layers.Dropout(rate)
 
-    def call(self, x, enc_output, training,
-             look_ahead_mask, padding_mask):
-        attn1 = self.mha1(x, x, x, look_ahead_mask)  # 自注意力
+    def call(self, x, enc_output, training, look_ahead_mask, padding_mask):
+        attn1 = self.mha1(x, x, x, mask=look_ahead_mask)  # 修正关键字参数
         attn1 = self.dropout1(attn1, training=training)
         out1 = self.layernorm1(attn1 + x)
 
-        attn2 = self.mha2(enc_output, enc_output, out1, padding_mask)  # 编码器-解码器注意力
+        attn2 = self.mha2(enc_output, enc_output, out1, mask=padding_mask)  # 修正关键字参数
         attn2 = self.dropout2(attn2, training=training)
         out2 = self.layernorm2(attn2 + out1)
 
@@ -190,8 +190,7 @@ class Decoder(layers.Layer):
                            for _ in range(num_layers)]
         self.dropout = layers.Dropout(rate)
 
-    def call(self, x, enc_output, training,
-             look_ahead_mask, padding_mask):
+    def call(self, x, enc_output, training, look_ahead_mask, padding_mask):
         seq_len = tf.shape(x)[1]
 
         attention_weights = {}
@@ -203,8 +202,8 @@ class Decoder(layers.Layer):
         x = self.dropout(x, training=training)
 
         for i in range(self.num_layers):
-            x = self.dec_layers[i](x, enc_output, training,
-                                   look_ahead_mask, padding_mask)
+            x = self.dec_layers[i](x, enc_output=enc_output, training=training,
+                                   look_ahead_mask=look_ahead_mask, padding_mask=padding_mask)
 
         return x  # (batch_size, target_seq_len, d_model)
 
@@ -223,13 +222,13 @@ class Transformer(tf.keras.Model):
                                target_vocab_size, pe_target, rate)
 
         self.final_layer = layers.Dense(target_vocab_size)
-
-    def call(self, inp, tar, training,
-             enc_padding_mask, look_ahead_mask, dec_padding_mask):
-        enc_output = self.encoder(inp, training, enc_padding_mask)  # (batch_size, inp_seq_len, d_model)
+    def call(self, inp, tar, training, enc_padding_mask, look_ahead_mask, dec_padding_mask):
+        enc_output = self.encoder(inp, training=training, mask=enc_padding_mask)  # 传递 enc_padding_mask
 
         dec_output = self.decoder(
-            tar, enc_output, training, look_ahead_mask, dec_padding_mask)  # (batch_size, tar_seq_len, d_model)
+            tar, enc_output=enc_output, training=training,
+            look_ahead_mask=look_ahead_mask, padding_mask=dec_padding_mask
+        )  # 传递 look_ahead_mask 和 dec_padding_mask
 
         final_output = self.final_layer(dec_output)  # (batch_size, tar_seq_len, target_vocab_size)
 
@@ -274,6 +273,16 @@ class CustomTransformer(tf.keras.Model):
 
         return enc_padding_mask, combined_mask, dec_padding_mask
 
+class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
+    def __init__(self, d_model, warmup_steps=4000):
+        super(CustomSchedule, self).__init__()
+        self.d_model = tf.cast(d_model, tf.float32)
+        self.warmup_steps = warmup_steps
+
+    def __call__(self, step):
+        arg1 = tf.math.rsqrt(step)
+        arg2 = step * (self.warmup_steps**-1.5)
+        return tf.math.rsqrt(self.d_model) * tf.math.minimum(arg1, arg2)
 
 # 超参数设置
 if __name__ == '__main__':
