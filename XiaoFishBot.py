@@ -285,6 +285,19 @@ class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
         arg2 = step * (self.warmup_steps**-1.5)
         return tf.math.rsqrt(self.d_model) * tf.math.minimum(arg1, arg2)
 
+    def get_config(self):
+        # 返回类的参数，以便序列化时保存配置
+        return {
+            "d_model": self.d_model.numpy(),  # 将 Tensor 转为普通 Python 数值
+            "warmup_steps": self.warmup_steps
+        }
+
+    @classmethod
+    def from_config(cls, config):
+        # 从配置中恢复实例
+        return cls(**config)
+
+
 # 超参数设置
 if __name__ == '__main__':
     num_layers = 4

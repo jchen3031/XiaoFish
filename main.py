@@ -3,9 +3,12 @@ from tensorflow.keras.preprocessing.sequence import pad_sequences
 from XiaoFishBot import Transformer, CustomTransformer, CustomSchedule
 from tensorflow.keras.preprocessing.text import Tokenizer
 import numpy as np
-from tensorflow.keras.callbacks import TensorBoard
+from tensorflow.keras.callbacks import TensorBoard, ModelCheckpoint
 import datetime
+import os
 
+
+print("GPU Available:", tf.config.list_physical_devices('GPU'))
 # 读取文件内容
 with open(r'data/all.nl', 'r', encoding='utf-8') as f_cm:
     source_sentences = f_cm.readlines()
@@ -13,13 +16,28 @@ with open(r'data/all.nl', 'r', encoding='utf-8') as f_cm:
 with open(r'data/all.cm', 'r', encoding='utf-8') as f_nl:
     target_sentences = f_nl.readlines()
 
+# source_sentences, target_sentences = source_sentences[:2000], target_sentences[:2000]
+model_dir = "saved_models"
+checkpoint_dir = "checkpoints"
+os.makedirs(model_dir, exist_ok=True)
+os.makedirs(checkpoint_dir, exist_ok=True)
+checkpoint_path = os.path.join(checkpoint_dir, "transformer_checkpoint_epoch_{epoch:02d}_val_loss_{val_loss:.2f}.h5")
+checkpoint_callback = ModelCheckpoint(
+    filepath=checkpoint_path,
+    save_weights_only=True,  # 只保存权重
+    save_best_only=True,     # 只保存最好的模型
+    monitor='val_loss',      # 监控验证集损失
+    mode='min',              # 监控指标越小越好
+    verbose=1
+)
 log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 tensorboard_callback = TensorBoard(log_dir=log_dir, histogram_freq=1)
 # 创建源和目标语言的 Tokenizer
 # target_sentences = target_sentences[:100]
-
-source_tokenizer = Tokenizer(num_words=8500, oov_token="<OOV>")
-target_tokenizer = Tokenizer(num_words=8000, oov_token="<OOV>")
+input_vocab_size = 8500
+target_vocab_size = 8000
+source_tokenizer = Tokenizer(num_words=input_vocab_size, oov_token="<OOV>")
+target_tokenizer = Tokenizer(num_words=target_vocab_size, oov_token="<OOV>")
 
 # 训练分词器
 source_tokenizer.fit_on_texts(source_sentences)
@@ -90,13 +108,10 @@ test_dataset = test_dataset.padded_batch(
 )
 
 # 设置超参数
-num_layers = 4
+num_layers = 8
 d_model = 128
 dff = 256
-num_heads = 8
-
-input_vocab_size = 8500
-target_vocab_size = 8000
+num_heads = 16
 dropout_rate = 0.1
 
 # 创建 Transformer 模型
@@ -126,13 +141,29 @@ custom_transformer.compile(
 # 训练模型
 history = custom_transformer.fit(
     train_dataset,
-    epochs=50,
+    epochs=10,
     validation_data=val_dataset,
     callbacks=[tensorboard_callback]
 )
+saved_model_path = os.path.join(model_dir, "transformer_model")
+custom_transformer.save(saved_model_path)
+print(f"Model saved to {saved_model_path}")
+import pickle
+
+tokenizer_path = os.path.join(model_dir, "tokenizers")
+os.makedirs(tokenizer_path, exist_ok=True)
+# 保存源语言分词器
+with open(os.path.join(tokenizer_path, 'source_tokenizer.pickle'), 'wb') as handle:
+    pickle.dump(source_tokenizer, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+# 保存目标语言分词器
+with open(os.path.join(tokenizer_path, 'target_tokenizer.pickle'), 'wb') as handle:
+    pickle.dump(target_tokenizer, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+print("Tokenizers saved successfully")
 # test_loss, test_accuracy = custom_transformer.evaluate(test_dataset)
-# print(f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.4f}")
-pred = custom_transformer.predict(val_dataset)
+# print(f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.4f}"))
+pred = custom_transformer.predict(train_dataset.take(1))
 pred = tf.nn.softmax(pred, axis=-1).numpy()
 print(pred[:5], pred.shape)
 predicted_sequences = np.argmax(pred, axis=-1)
