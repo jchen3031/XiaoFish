@@ -25,9 +25,9 @@ def positional_encoding(position, d_model):
 
 
 # 定义多头注意力机制
-class MultiHeadAttention(layers.Layer):
+class XFMultiHeadAttention(layers.Layer):
     def __init__(self, d_model, num_heads):
-        super(MultiHeadAttention, self).__init__()
+        super(XFMultiHeadAttention, self).__init__()
         self.num_heads = num_heads
         self.d_model = d_model
 
@@ -79,7 +79,7 @@ class EncoderLayer(layers.Layer):
     def __init__(self, d_model, num_heads, dff, rate=0.1):
         super(EncoderLayer, self).__init__()
 
-        self.mha = MultiHeadAttention(d_model, num_heads)
+        self.mha = XFMultiHeadAttention(d_model, num_heads)
         self.ffn = tf.keras.Sequential([
             layers.Dense(dff, activation='relu'),
             layers.Dense(d_model)
@@ -111,6 +111,8 @@ class Encoder(layers.Layer):
 
         self.d_model = d_model
         self.num_layers = num_layers
+        self.num_heads = num_heads
+        self.dff = dff
 
         self.embedding = layers.Embedding(input_vocab_size, d_model)
         self.pos_encoding = positional_encoding(maximum_position_encoding, d_model)
@@ -142,8 +144,8 @@ class DecoderLayer(layers.Layer):
     def __init__(self, d_model, num_heads, dff, rate=0.1):
         super(DecoderLayer, self).__init__()
 
-        self.mha1 = MultiHeadAttention(d_model, num_heads)
-        self.mha2 = MultiHeadAttention(d_model, num_heads)
+        self.mha1 = XFMultiHeadAttention(d_model, num_heads)
+        self.mha2 = XFMultiHeadAttention(d_model, num_heads)
 
         self.ffn = tf.keras.Sequential([
             layers.Dense(dff, activation='relu'),
@@ -214,6 +216,16 @@ class Transformer(tf.keras.Model):
                  input_vocab_size, target_vocab_size,
                  pe_input, pe_target, rate=0.1):
         super(Transformer, self).__init__()
+        self.num_layers = num_layers
+        self.d_model = d_model
+        self.num_layers = num_layers
+        self.num_heads = num_heads
+        self.dff = dff
+        self.input_vocab_size = input_vocab_size
+        self.target_vocab_size = target_vocab_size
+        self.pe_input = pe_input
+        self.pe_target = pe_target
+        self.rate = rate
 
         self.encoder = Encoder(num_layers, d_model, num_heads, dff,
                                input_vocab_size, pe_input, rate)
@@ -233,6 +245,25 @@ class Transformer(tf.keras.Model):
         final_output = self.final_layer(dec_output)  # (batch_size, tar_seq_len, target_vocab_size)
 
         return final_output
+
+    def get_config(self):
+        # 保存模型的配置
+        return {
+            "num_layers": self.num_layers,
+            "d_model": self.d_model,
+            "num_heads": self.num_heads,
+            "dff": self.dff,
+            "input_vocab_size": self.input_vocab_size,
+            "target_vocab_size": self.target_vocab_size,
+            "pe_input": self.pe_input,
+            "pe_target": self.pe_target,
+            "rate": self.rate
+        }
+
+    @classmethod
+    def from_config(cls, config):
+        # 从配置中重建模型
+        return cls(**config)
 
 
 # 定义自定义模型
@@ -272,6 +303,19 @@ class CustomTransformer(tf.keras.Model):
         combined_mask = tf.maximum(dec_target_padding_mask, look_ahead_mask)
 
         return enc_padding_mask, combined_mask, dec_padding_mask
+
+    def get_config(self):
+        # 保存 CustomTransformer 的配置
+        config = super(CustomTransformer, self).get_config()
+        config.update({"transformer": self.transformer.get_config()})
+        return config
+
+    @classmethod
+    def from_config(cls, config):
+        # 从配置中重建 CustomTransformer
+        transformer_config = config.pop("transformer")
+        transformer = Transformer.from_config(transformer_config)
+        return cls(transformer=transformer)
 
 class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
     def __init__(self, d_model, warmup_steps=4000):
