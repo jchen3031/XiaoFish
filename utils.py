@@ -4,6 +4,7 @@ import tensorflow as tf
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from nltk.translate.bleu_score import SmoothingFunction
 from nltk.translate.bleu_score import sentence_bleu
+from tqdm import tqdm
 
 def predict_sequence_step_by_step(input_sentence, model, source_tokenizer, target_tokenizer, max_length=50,
                                   beam_width=5):
@@ -60,7 +61,10 @@ def get_bleu(test_input, test_target, source_tokenizer, target_tokenizer, custom
     # Evaluate BLEU on the test set
     print("----------------BLEU EVALUATION START----------------")
     bleu_scores = []
-    for (source_text, target_text) in zip(test_input, test_target):
+    for source_text, target_text in tqdm(zip(test_input, test_target),
+                                         total=len(test_input),
+                                         desc="Evaluating BLEU",
+                                         leave=True):
         # Convert source sequence to text
         source_sentence = sequence_to_text(source_text, source_tokenizer)
         # Predict the target sequence step by step
@@ -70,9 +74,11 @@ def get_bleu(test_input, test_target, source_tokenizer, target_tokenizer, custom
             source_tokenizer,
             target_tokenizer
         )
-        prediction = predicted_sequence.split()
+        prediction = predicted_sequence.split()[1:-1]
         reference = [target_tokenizer.index_word.get(idx, "<OOV>") for idx in target_text if idx > 0]
         # Compute BLEU score
+        # print("Reference:", reference)
+        # print("Prediction:", prediction)
         bleu = compute_bleu_score(reference, prediction)
         bleu_scores.append(bleu)
     average_bleu = np.mean(bleu_scores)
