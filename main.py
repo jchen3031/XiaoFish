@@ -8,7 +8,7 @@ import datetime
 import os
 import argparse
 import re
-from utils import preprocess_text, sequence_to_text, predict_sequence_step_by_step
+from utils import preprocess_text, sequence_to_text, predict_sequence_step_by_step, get_bleu
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--num_layers', type=int, default=4, help='number of layers in transformer')
@@ -61,7 +61,7 @@ model_dir = param.model_dir
 checkpoint_dir = "checkpoints"
 os.makedirs(model_dir, exist_ok=True)
 os.makedirs(checkpoint_dir, exist_ok=True)
-checkpoint_path = os.path.join(checkpoint_dir, "transformer_checkpoint_epoch_{epoch:02d}_val_loss_{val_loss:.2f}.h5")
+checkpoint_path = os.path.join(checkpoint_dir, "transformer_checkpoint_epoch_{epoch:02d}_val_loss_{val_loss:.2f}.weights.h5")
 checkpoint_callback = ModelCheckpoint(
     filepath=checkpoint_path,
     save_weights_only=True,  # 只保存权重
@@ -176,7 +176,7 @@ if epochs > 0:
         validation_data=val_dataset,
         callbacks=[tensorboard_callback]
     )
-saved_model_path = os.path.join(model_dir, "transformer_model")
+saved_model_path = "saved_models/transformer_model.keras"
 custom_transformer.save(saved_model_path)
 print(f"Model saved to {saved_model_path}")
 import pickle
@@ -194,6 +194,9 @@ with open(os.path.join(tokenizer_path, 'target_tokenizer.pickle'), 'wb') as hand
 print("Tokenizers saved successfully")
 test_loss, test_accuracy = custom_transformer.evaluate(test_dataset)
 print(f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.4f}")
+
+get_bleu(test_input, test_target, source_tokenizer, target_tokenizer, custom_transformer)
+
 example = next(iter(train_dataset))  # 获取一个 batch 的数据
 source_texts, _ = example[0]  # 解构输入 (source_texts, tar_inp)
 true_label = example[1]  # 解构标签 (tar_real)
