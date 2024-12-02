@@ -76,7 +76,7 @@ def get_bleu(test_input, test_target, source_tokenizer, target_tokenizer, custom
         )
         prediction = predicted_sequence.split()[1:-1]
         reference = [target_tokenizer.index_word.get(idx, "<OOV>") for idx in target_text if idx > 0]
-        # Compute BLEU score
+        # Compute BLEU scoref
         # print("Reference:", reference)
         # print("Prediction:", prediction)
         bleu = compute_bleu_score(reference, prediction)

@@ -41,6 +41,9 @@ dff = param.dff
 num_heads = param.num_heads
 dropout_rate = param.dropout_rate
 epochs = param.epochs
+SEED = 42
+np.random.seed(SEED)
+
 
 print("GPU Available:", tf.config.list_physical_devices('GPU'))
 # 读取文件内容
@@ -82,6 +85,14 @@ target_tokenizer.fit_on_texts(target_sentences)
 # 将句子转换为序列
 input_sequences = source_tokenizer.texts_to_sequences(source_sentences)
 target_sequences = target_tokenizer.texts_to_sequences(target_sentences)
+input_sequences = np.array(input_sequences)
+target_sequences = np.array(target_sequences)
+indices = np.arange(len(input_sequences))
+np.random.shuffle(indices)
+
+# 使用打乱后的索引重新排列数据集
+input_sequences = input_sequences[indices]
+target_sequences = target_sequences[indices]
 
 BUFFER_SIZE = 20000
 data_size = len(input_sequences)
@@ -176,8 +187,8 @@ if epochs > 0:
         validation_data=val_dataset,
         callbacks=[tensorboard_callback]
     )
-saved_model_path = "saved_models/transformer_model.keras"
-custom_transformer.save(saved_model_path)
+saved_model_path = os.path.join(model_dir, "saved_model")
+custom_transformer.save(saved_model_path, save_format="tf")
 print(f"Model saved to {saved_model_path}")
 import pickle
 
@@ -195,7 +206,7 @@ print("Tokenizers saved successfully")
 test_loss, test_accuracy = custom_transformer.evaluate(test_dataset)
 print(f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy:.4f}")
 
-get_bleu(test_input, test_target, source_tokenizer, target_tokenizer, custom_transformer)
+# get_bleu(test_input, test_target, source_tokenizer, target_tokenizer, custom_transformer)
 
 example = next(iter(train_dataset))  # 获取一个 batch 的数据
 source_texts, _ = example[0]  # 解构输入 (source_texts, tar_inp)

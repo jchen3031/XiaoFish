@@ -4,19 +4,25 @@ import tensorflow as tf
 from tensorflow.keras.models import load_model
 from XiaoFishBot import Transformer, CustomTransformer, CustomSchedule
 from utils import predict_sequence_step_by_step
-# 定义保存的路径
-model_dir = "model_2"
+import numpy as np
+# 定义保存的路径load
+model_dir = "latest_model"
 tokenizer_path = os.path.join(model_dir, "tokenizers")
-saved_model_path = os.path.join(model_dir, "transformer_model")
-
+saved_model_path = os.path.join(model_dir, "saved_model")
+SEED = 42
+np.random.seed(SEED)
 # 加载模型
 loaded_model = load_model(saved_model_path, custom_objects={
     "Transformer": Transformer,
     "CustomTransformer": CustomTransformer,
     "CustomSchedule": CustomSchedule
 })
-
-print("Model loaded successfully!")
+# 计算模型的总参数数量
+total_params = loaded_model.count_params()
+print(f"Total parameters: {total_params}")
+# 累加所有权重的参数数量
+total_params = sum(np.prod(var.shape) for var in loaded_model.trainable_variables)
+print(f"Total trainable parameters: {total_params}")
 
 # 加载分词器
 with open(os.path.join(tokenizer_path, 'source_tokenizer.pickle'), 'rb') as handle:
@@ -26,7 +32,7 @@ with open(os.path.join(tokenizer_path, 'target_tokenizer.pickle'), 'rb') as hand
     target_tokenizer = pickle.load(handle)
 
 print("Tokenizers loaded successfully!")
-input_sentence = "Make directory '/cpuset'"
+input_sentence = "(GNU specific) Calculte and output amount of CPU load taken by all processes belonging to user 'abc'."
 predicted_translation = predict_sequence_step_by_step(input_sentence, loaded_model, source_tokenizer, target_tokenizer)
 print(f"Input: {input_sentence}")
 print(f"Predicted Translation: {predicted_translation}")
@@ -55,6 +61,15 @@ source_sentences = [preprocess_text(s) for s in source_sentences]
 target_sentences = [preprocess_text(s) for s in target_sentences]
 input_sequences = source_tokenizer.texts_to_sequences(source_sentences)
 target_sequences = target_tokenizer.texts_to_sequences(target_sentences)
+input_sequences = np.array(input_sequences)
+target_sequences = np.array(target_sequences)
+indices = np.arange(len(input_sequences))
+np.random.shuffle(indices)
+
+# 使用打乱后的索引重新排列数据集
+input_sequences = input_sequences[indices]
+target_sequences = target_sequences[indices]
+
 BUFFER_SIZE = 20000
 data_size = len(input_sequences)
 train_size = int(0.8 * data_size)
@@ -79,4 +94,4 @@ val_target = pad_sequences(val_target, padding='post')
 test_input = pad_sequences(test_input, padding='post')
 test_target = pad_sequences(test_target, padding='post')
 
-print(get_bleu(test_input, test_target, source_tokenizer, target_tokenizer, loaded_model))
+# print(get_bleu(test_input, test_target, source_tokenizer, target_tokenizer, loaded_model))
