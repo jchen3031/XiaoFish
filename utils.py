@@ -85,3 +85,33 @@ def get_bleu(test_input, test_target, source_tokenizer, target_tokenizer, custom
     print(f"Average BLEU score on test set: {average_bleu:.4f}")
     print("----------------BLEU EVALUATION END----------------")
 
+def test_bleu(generated_commands, reference_commands):
+    from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
+    import numpy as np
+
+    start_token = '<start>'
+    end_token = '<end>'
+
+    def compute_bleu_score(reference, prediction):
+        smoothie = SmoothingFunction().method1
+        return sentence_bleu([reference], prediction, smoothing_function=smoothie)
+
+    print("----------------BLEU EVALUATION START----------------")
+    bleu_scores = []
+
+    for pred_command, ref_command in zip(generated_commands, reference_commands):
+        # Tokenize the predicted and reference commands
+        pred_tokens = pred_command.strip().split()
+        ref_tokens = ref_command.strip().split()
+
+        # Remove <start> and <end> tokens from both predictions and references
+        pred_tokens = [token for token in pred_tokens if token not in {start_token, end_token}]
+        ref_tokens = [token for token in ref_tokens if token not in {start_token, end_token}]
+
+        # Compute BLEU score
+        bleu = compute_bleu_score(ref_tokens, pred_tokens)
+        bleu_scores.append(bleu)
+
+    average_bleu = np.mean(bleu_scores)
+    print(f"Average BLEU score on test set: {average_bleu:.4f}")
+    print("----------------BLEU EVALUATION END----------------")
