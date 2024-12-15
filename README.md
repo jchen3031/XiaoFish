@@ -6,10 +6,10 @@ We suggest following the official instructions to install the library. The code 
 
 We recommend using a virtual environment to avoid conflicts with other libraries. 
 
-Here are the steps to install TensorFlow 2.0 by Window system:
+Here are the steps to install TensorFlow 2.0 by window and linux system:
 ```
-conda create --name nl2bash python=3.9 -y
-conda activate nl2bash
+conda create --name xiaofish python=3.9 -y
+conda activate xiaofish
 pip install tensorflow==2.10
 pip install -r requirements.txt
 ```

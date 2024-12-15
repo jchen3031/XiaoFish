@@ -32,7 +32,7 @@ with open(os.path.join(tokenizer_path, 'target_tokenizer.pickle'), 'rb') as hand
     target_tokenizer = pickle.load(handle)
 
 print("Tokenizers loaded successfully!")
-input_sentence = "(GNU specific) Calculte and output amount of CPU load taken by all processes belonging to user 'abc'."
+input_sentence = "Clean up all zombie processes by instantly killing their parent process with the SIGKILL signal."
 predicted_translation = predict_sequence_step_by_step(input_sentence, loaded_model, source_tokenizer, target_tokenizer)
 print(f"Input: {input_sentence}")
 print(f"Predicted Translation: {predicted_translation}")
