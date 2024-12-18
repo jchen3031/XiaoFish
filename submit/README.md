@@ -31,3 +31,5 @@ Our best model is saved in the ```latest_model``` folder.
 To use it in load_model.py, you can set the ```model_path``` to ```latest_model``` or keep it as default.
 if you want to use your own model, you can change the ```model_path``` to your own model path.
 ```python load_model.py --model_path your_model_path```
+
+Our github https://github.com/jchen3031/XiaoFish
