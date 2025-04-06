@@ -1,36 +1,121 @@
-# XiaoFish
-Install TensorFlow
-To reproduce our experiments, please install TensorFlow 2.0. The experiments can be reproduced on machines with or without GPUs. However, training with CPU only is extremely slow and we do not recommend it. Inference with CPU only is slow but tolerable.
+# 🐟 XiaoFish
 
-We suggest following the official instructions to install the library. The code has been tested on Ubuntu 16.04 + CUDA 10.0 + CUDNN 7.6.3.
+XiaoFish is a TensorFlow-based project for sequence modeling. Below is a guide to help you set up and run the project smoothly.
 
-We recommend using a virtual environment to avoid conflicts with other libraries. 
+------
 
-Here are the steps to install TensorFlow 2.0 by window and linux system:
-```
+## 🚀 Installation Guide
+
+To reproduce our experiments, **TensorFlow 2.0** is required. The experiments can be run on both GPU and CPU, but:
+
+- **Training on CPU only** is extremely slow and **not recommended**.
+- **Inference on CPU** is slow but **tolerable**.
+
+We recommend using a **virtual environment** to avoid conflicts with other libraries.
+
+### ✅ Recommended System Configuration
+
+- **OS**: Ubuntu 16.04
+- **CUDA**: 10.0
+- **cuDNN**: 7.6.3
+
+### 🔧 Installation Steps (for Windows & Linux)
+
+```bash
 conda create --name xiaofish python=3.9 -y
 conda activate xiaofish
 pip install tensorflow==2.10
 pip install -r requirements.txt
 ```
 
-Then the environment is ready to use. 
+After this, your environment is ready to use!
 
-Run ```python main.py``` to train the model on the training set. Using parse_args to set the hyperparameters.
-You can run
-```python main.py --epochs 5``` to train the model for 5 epochs.<br>
-To have a better performance of model, we suggest to train at least 10 epochs.<br>
-```python main.py --help``` to get the list of hyperparameters.<br>
-To track the training process, you can use tensorboard by running ```tensorboard --logdir=logs``` in the terminal.
+------
 
-You can use run ```python load_model.py``` to load the pre-trained model. And test on the test set to get the bleu score.<br>
-```python load_model.py --input_sentence your_sentence``` to get the predicted sentence.<br>
-```python load_model.py --bleu True``` to get the bleu score.<br>
-```python load_model.py --help``` to get the list of hyperparameters.
-Our best model is saved in the ```latest_model``` folder.
-To use it in load_model.py, you can set the ```model_path``` to ```latest_model``` or keep it as default.
-if you want to use your own model, you can change the ```model_path``` to your own model path.
-```python load_model.py --model_path your_model_path```
+## 🏋️‍♀️ Train the Model
 
-```python test.py``` to test the model by bleu score and our test method.
-Note that it may only work on linux system since many cmd is specific to linux system.
+To train the model on the training set:
+
+```bash
+python main.py
+```
+
+Use `--epochs` to control training duration, for example:
+
+```bash
+python main.py --epochs 5
+```
+
+> 💡 We recommend training for at least **10 epochs** for better performance.
+
+For a full list of hyperparameters:
+
+```bash
+python main.py --help
+```
+
+------
+
+## 📈 Monitor Training with TensorBoard
+
+To visualize training logs, run:
+
+```bash
+tensorboard --logdir=logs
+```
+
+Then open the displayed link in your browser.
+
+------
+
+## 🧠 Load & Evaluate the Pretrained Model
+
+To load the pretrained model and test it:
+
+```bash
+python load_model.py
+```
+
+To generate prediction for a custom sentence:
+
+```bash
+python load_model.py --input_sentence "your_sentence"
+```
+
+To calculate BLEU score:
+
+```bash
+python load_model.py --bleu True
+```
+
+To see all options:
+
+```bash
+python load_model.py --help
+```
+
+> 📁 The best model is saved in the `latest_model/` folder.
+>  To use it, either:
+>
+> - Keep the default `model_path`, or
+>
+> - Specify a custom model path:
+>
+>   ```bash
+>   python load_model.py --model_path your_model_path
+>   ```
+
+------
+
+## 🧪 Run Final Evaluation
+
+To test the model using both BLEU and custom test method:
+
+```bash
+python test.py
+```
+
+> ⚠️ Note: `test.py` is **Linux-specific**, as it uses shell commands that may not work on Windows.
+
+------
+
